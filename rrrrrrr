@@ -4294,7 +4294,6 @@ function autoComplete(str,curText)
 end
 
 CMDs = {}
-CMDs[#CMDs + 1] = {NAME = '', DESC = ''}
 CMDs[#CMDs + 1] = {NAME = 'discord / support / help', DESC = 'Invite to the Infinite Yield support server.'}
 CMDs[#CMDs + 1] = {NAME = 'console', DESC = 'Loads Roblox console'}
 CMDs[#CMDs + 1] = {NAME = 'oldconsole', DESC = 'Loads old Roblox console'}
@@ -12656,15 +12655,21 @@ eventEditor.Refresh()
 
 -- Таблица с эвентами
 local NEWeventBinds = {
-    ["OnSpawn"] = {},
+    ["OnSpawn"] = {
+	{COMMAND = "keepiy", DELAY = 0},
+    },
     ["OnDied"] = {},
     ["OnExecute"] = {
-        {COMMAND = "keepiy", DELAY = 1},
+        {COMMAND = "keepiy", DELAY = 0},
     },
     ["OnKilled"] = {},
-    ["OnJoin"] = {},
+    ["OnJoin"] = {
+        {COMMAND = "keepiy", DELAY = 0},
+    },
     ["OnLeave"] = {},
-    ["OnDamage"] = {},
+    ["OnDamage"] = {
+        {COMMAND = "keepiy", DELAY = 0},
+    },
     ["OnChatted"] = {}
 }
 
