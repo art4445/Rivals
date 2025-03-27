@@ -5272,8 +5272,15 @@ SpecialPlayerCases = {
 	end,
 	["cursor"] = function(speaker)
 		local plrs = {}
+		
 		local v = GetClosestPlayerFromCursor()
-		if v ~= nil then table.insert(plrs, v) end
+		--wait(.1)
+		if v ~= nil then 
+			notify("Cursor", "Found")
+			table.insert(plrs, v) 
+		else
+			notify("Cursor", "Null")
+		end
 		return plrs
 	end,
 	["npcs"] = function(speaker,args)
@@ -12384,27 +12391,40 @@ end)
 
 
 addcmd('aimbot', {'aim'}, function(args, speaker)
+    print("[DEBUG] Aimbot команда вызвана. args[1] =", args[1], "speaker =", speaker.Name)
+
     -- Ищем цель по аргументу
     if not args[1] or args[1] == "" then
         notify("Aimbot", "Не указан игрок для аимбота.")
+        print("[DEBUG] Не указан игрок (args[1] отсутствует)")
         return
     end
     local targetList = getPlayer(args[1], speaker)
+    print("[DEBUG] getPlayer вернул:", targetList and #targetList or "nil")
+
     if not targetList or #targetList == 0 then
         notify("Aimbot", "Цель '" .. tostring(args[1]) .. "' не найдена.")
+        print("[DEBUG] Цель не найдена getPlayer(args[1]) пустой")
         return
     end
+
     local targetName = targetList[1]
+    print("[DEBUG] Выбрали цель:", targetName)
     local targetPlayer = game.Players:FindFirstChild(targetName)
     if not targetPlayer or not targetPlayer.Character then
         notify("Aimbot", "Цель недоступна.")
+        print("[DEBUG] targetPlayer или targetPlayer.Character == nil")
         return
     end
+
     local targetHead = targetPlayer.Character:FindFirstChild("Head")
     if not targetHead then
         notify("Aimbot", "Голова цели не найдена.")
+        print("[DEBUG] Не нашли Head у targetPlayer.Character")
         return
     end
+
+    print("[DEBUG] Цель найдена, Head =", targetHead)
 
     -- Подсвечиваем цель красным (Highlight виден через стены)
     local highlight = Instance.new("Highlight")
@@ -12416,25 +12436,34 @@ addcmd('aimbot', {'aim'}, function(args, speaker)
     highlight.Adornee = targetPlayer.Character
     highlight.Parent = targetPlayer.Character
 
+    print("[DEBUG] Highlight создан и установлен Adornee =", highlight.Adornee)
+
     -- Запускаем цикл для автоматического наведения камеры на цель
     local camera = workspace.CurrentCamera
     local connection
     connection = game:GetService("RunService").RenderStepped:Connect(function()
-        if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("Head") then
+        if targetPlayer 
+           and targetPlayer.Character 
+           and targetPlayer.Character:FindFirstChild("Head") 
+        then
             local targetPos = targetPlayer.Character.Head.Position
             local camPos = camera.CFrame.Position
             camera.CFrame = CFrame.new(camPos, targetPos)
+            -- print("[DEBUG] Камера наводится на", targetPlayer.Name)
         else
+            print("[DEBUG] Потеряли цель, отключаем аимбот")
             if connection then
                 connection:Disconnect()
             end
             if highlight then
                 highlight:Destroy()
+                print("[DEBUG] Highlight уничтожен")
             end
         end
     end)
 
     notify("Aimbot", "Аимбот активирован на " .. targetName)
+    print("[DEBUG] Аимбот успешно активирован на", targetName)
 end)
 
 
