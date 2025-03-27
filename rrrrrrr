@@ -12642,38 +12642,32 @@ eventEditor.RegisterEvent("OnChatted",{
 	{Type="String",Name="Message Filter ($2)"}
 })
 
-function hookCharEvents(plr,instant)
-	task.spawn(function()
-		local char = plr.Character
-		if not char then return end
+function hookCharEvents(plr, instant)
+    task.spawn(function()
+        local char = plr.Character
+        if not char then return end
 
-		local humanoid = char:WaitForChild("Humanoid",10)
-		if not humanoid then return end
+        local humanoid = char:WaitForChild("Humanoid", 10)
+        if not humanoid then return end
 
-		local oldHealth = humanoid.Health
-		humanoid.HealthChanged:Connect(function(health)
-			local change = math.abs(oldHealth - health)
-			if oldHealth > health then
-				eventEditor.FireEvent("OnDamage",plr.Name,tonumber(health))
-			end
-			oldHealth = health
-		end)
+        -- Инициализируем oldHealth
+        local oldHealth = humanoid.Health or 100
 
-		humanoid.Died:Connect(function()
-			eventEditor.FireEvent("OnDied",plr.Name)
+        humanoid.HealthChanged:Connect(function(newHealth)
+            -- Если одно из значений не число, выходим
+            if type(oldHealth) ~= "number" or type(newHealth) ~= "number" then
+                return
+            end
 
-			local killedBy = humanoid:FindFirstChild("creator")
-			
-			
-			if killedBy and killedBy.Value and killedBy.Value.Parent then
-				eventEditor.FireEvent("OnKilled",plr.Name,killedBy.Name)
-				if killedBy.Parent and killedBy.Parent.Parent and killedBy.Parent.Parent.DisplayName ~= nil then
-					lastkiller = killedBy.Parent.Parent.DisplayName
-					notify("killer", lastkiller)
-				end
-			end
-		end)
-	end)
+            local change = math.abs(oldHealth - newHealth)
+            if oldHealth > newHealth then
+                eventEditor.FireEvent("OnDamage", plr.Name, math.floor(newHealth))
+            end
+
+            -- Обновляем oldHealth
+            oldHealth = newHealth
+        end)
+    end)
 end
 
 Players.PlayerAdded:Connect(function(plr)
