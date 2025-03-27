@@ -12659,10 +12659,7 @@ local NEWeventBinds = {
     ["OnSpawn"] = {},
     ["OnDied"] = {},
     ["OnExecute"] = {
-        {COMMAND = "dex", DELAY = 4},
-	{COMMAND = "clogs", DELAY = 10},
-	{COMMAND = "rspy", DELAY = 2},
-	{COMMAND = "", DELAY = 5}
+        {COMMAND = "keepiy", DELAY = 1},
     },
     ["OnKilled"] = {},
     ["OnJoin"] = {},
