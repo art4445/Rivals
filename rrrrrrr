@@ -12383,6 +12383,65 @@ end)
 
 
 
+addcmd('aimbot', {'aim'}, function(args, speaker)
+    -- Ищем цель по аргументу
+    if not args[1] or args[1] == "" then
+        notify("Aimbot", "Не указан игрок для аимбота.")
+        return
+    end
+    local targetList = getPlayer(args[1], speaker)
+    if not targetList or #targetList == 0 then
+        notify("Aimbot", "Цель '" .. tostring(args[1]) .. "' не найдена.")
+        return
+    end
+    local targetName = targetList[1]
+    local targetPlayer = game.Players:FindFirstChild(targetName)
+    if not targetPlayer or not targetPlayer.Character then
+        notify("Aimbot", "Цель недоступна.")
+        return
+    end
+    local targetHead = targetPlayer.Character:FindFirstChild("Head")
+    if not targetHead then
+        notify("Aimbot", "Голова цели не найдена.")
+        return
+    end
+
+    -- Подсвечиваем цель красным (Highlight виден через стены)
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "AimbotHighlight"
+    highlight.FillColor = Color3.new(1, 0, 0)
+    highlight.FillTransparency = 0.5
+    highlight.OutlineColor = Color3.new(1, 0, 0)
+    highlight.OutlineTransparency = 0
+    highlight.Adornee = targetPlayer.Character
+    highlight.Parent = targetPlayer.Character
+
+    -- Запускаем цикл для автоматического наведения камеры на цель
+    local camera = workspace.CurrentCamera
+    local connection
+    connection = game:GetService("RunService").RenderStepped:Connect(function()
+        if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("Head") then
+            local targetPos = targetPlayer.Character.Head.Position
+            local camPos = camera.CFrame.Position
+            camera.CFrame = CFrame.new(camPos, targetPos)
+        else
+            if connection then
+                connection:Disconnect()
+            end
+            if highlight then
+                highlight:Destroy()
+            end
+        end
+    end)
+
+    notify("Aimbot", "Аимбот активирован на " .. targetName)
+end)
+
+
+
+
+
+
 
 
 
