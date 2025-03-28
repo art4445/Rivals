@@ -12389,77 +12389,111 @@ end)
 
 
 
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local camera = workspace.CurrentCamera
+local localPlayer = Players.LocalPlayer
+
+local aimbotConnection = nil  -- Для хранения подключения RenderStepped
+
+-- Параметры Raycast (чтобы исключить ваш Character)
+local rayParams = RaycastParams.new()
+rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+if localPlayer.Character then
+    rayParams.FilterDescendantsInstances = {localPlayer.Character}
+end
 
 addcmd('aimhitbox', {'ahb'}, function(args, speaker)
-    print("[Aimbot] Команда вызвана. speaker=", speaker.Name)
-
-    -- 1) Вызываем esp, ждём 1 секунду
-    execCmd('esp')
-    task.wait(1)
-    print("[Aimbot] ESP вызван, ожидание завершено")
-
+    print("[Aimbot] Команда вызвана. Speaker:", speaker.Name)
+    
     if not args[1] or args[1] == "" then
         notify("Aimbot", "Не указан игрок для аимбота.")
-        print("[Aimbot] Не указан игрок")
+        print("[Aimbot] Ошибка: нет аргумента args[1]")
         return
     end
 
-    local targets = getPlayer(args[1], speaker)
-    print("[Aimbot] getPlayer вернул:", targets and #targets or "nil")
-    if not targets or #targets == 0 then
-        notify("Aimbot", "Цель '"..tostring(args[1]).."' не найдена.")
-        print("[Aimbot] Цель не найдена")
+    local targetList = getPlayer(args[1], speaker)
+    print("[Aimbot] getPlayer вернул:", targetList and #targetList or "nil")
+    if not targetList or #targetList == 0 then
+        notify("Aimbot", "Цель '" .. tostring(args[1]) .. "' не найдена.")
+        print("[Aimbot] Ошибка: цель не найдена")
         return
     end
-    local targetName = targets[1]
+
+    local targetName = targetList[1]
+    print("[Aimbot] Выбрана цель:", targetName)
+
     local targetPlayer = game.Players:FindFirstChild(targetName)
     if not targetPlayer or not targetPlayer.Character then
-        notify("Aimbot","Цель недоступна (нет Character).")
-        print("[Aimbot] Цель недоступна")
+        notify("Aimbot", "Цель недоступна.")
+        print("[Aimbot] Ошибка: нет Character у цели")
         return
     end
 
     local hitbox = targetPlayer.Character:FindFirstChild("HitboxHead")
     if not hitbox then
-        notify("Aimbot","У цели нет HitboxHead")
-        print("[Aimbot] HitboxHead не найден")
+        notify("Aimbot", "У цели нет HitboxHead.")
+        print("[Aimbot] Ошибка: HitboxHead не найден")
         return
     end
 
-    -- 2) Берём камеру и ставим её в Scriptable
-    local cam = workspace.Camera
-    if not cam then
-        notify("Aimbot","Не нашли workspace.Camera")
-        print("[Aimbot] Camera отсутствует")
-        return
-    end
-    local oldType = cam.CameraType
-    cam.CameraType = Enum.CameraType.Scriptable
-    print("[Aimbot] Установили CameraType = Scriptable")
+    -- Сохраняем предыдущий тип камеры и устанавливаем Scriptable
+    local oldCameraType = camera.CameraType
+    camera.CameraType = Enum.CameraType.Scriptable
+    print("[Aimbot] Камера переведена в Scriptable")
 
-    -- 3) Начинаем наводить камеру
-    local connection
-    connection = game:GetService("RunService").RenderStepped:Connect(function()
-        if targetPlayer
-           and targetPlayer.Character
-           and targetPlayer.Character:FindFirstChild("HitboxHead")
-        then
-            local targetPos = targetPlayer.Character.HitboxHead.Position
-            local camPos = cam.CFrame.Position
-            cam.CFrame = CFrame.new(camPos, targetPos)
-            -- print("[Aimbot] Наводим камеру на "..targetName)
+    aimbotConnection = RunService.RenderStepped:Connect(function()
+        -- Выполняем raycast из центра экрана
+        local viewportSize = camera.ViewportSize
+        local center = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
+        local ray = camera:ScreenPointToRay(center.X, center.Y)
+        local result = workspace:Raycast(ray.Origin, ray.Direction * 1000, rayParams)
+        if result and result.Instance then
+            if result.Instance.Name == "HumanoidRootPart" then
+                execCmd('autoclick 1 0.01')
+                print("[Aimbot] autoclick вызван, объект:", result.Instance:GetFullName())
+            else
+                print("[Aimbot] Луч пересёк:", result.Instance:GetFullName())
+            end
         else
-            print("[Aimbot] Цель потеряна, отключаем аимбот")
-            if connection then connection:Disconnect() end
-            -- Возвращаем камеру
-            cam.CameraType = oldType
+            print("[Aimbot] Луч не пересёк ничего")
+        end
+
+        -- Наводим камеру на HitboxHead цели
+        if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HitboxHead") then
+            local targetPos = targetPlayer.Character.HitboxHead.Position
+            local camPos = camera.CFrame.Position
+            camera.CFrame = CFrame.new(camPos, targetPos)
+            print("[Aimbot] Камера наводится на:", targetName)
+        else
+            print("[Aimbot] Цель потеряна, останавливаем аимбот")
+            if aimbotConnection then
+                aimbotConnection:Disconnect()
+                aimbotConnection = nil
+            end
+            camera.CameraType = oldCameraType
+            notify("Aimbot", "Аимбот остановлен (цель потеряна).")
         end
     end)
 
-    notify("Aimbot","Аимбот включен на "..targetName)
-    print("[Aimbot] Аимбот включен, цель=", targetName)
+    notify("Aimbot", "Аимбот активирован на " .. targetName)
+    print("[Aimbot] Аимбот активирован на:", targetName)
 end)
 
+-- Команда для остановки аимбота
+addcmd('stopaimbot', {'sa'}, function(args, speaker)
+    if aimbotConnection then
+        aimbotConnection:Disconnect()
+        aimbotConnection = nil
+        camera.CameraType = Enum.CameraType.Custom
+        notify("Aimbot", "Аимбот остановлен.")
+        print("[Aimbot] Аимбот остановлен.")
+    else
+        notify("Aimbot", "Аимбот не запущен.")
+        print("[Aimbot] Аимбот не был запущен.")
+    end
+end)
 
 
 
