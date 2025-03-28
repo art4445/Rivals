@@ -12390,81 +12390,71 @@ end)
 
 
 
-addcmd('aimbot', {'aim'}, function(args, speaker)
-    print("[DEBUG] Aimbot запущен для " .. speaker.Name)
-    
-    -- Проверяем аргумент
+addcmd('aimhitbox', {'ahb'}, function(args, speaker)
+    -- Перед аимботом вызываем esp и ждем 1 секунду
+    execCmd('esp')
+    task.wait(1)
+    print("[Aimbot] ESP вызван, ожидание 1 секунда завершено")
+
+    -- Проверяем аргумент: имя цели
     if not args[1] or args[1] == "" then
         notify("Aimbot", "Не указан игрок для аимбота.")
-        print("[DEBUG] args[1] не указан")
+        print("[Aimbot] args[1] отсутствует")
         return
     end
 
     local targetList = getPlayer(args[1], speaker)
-    print("[DEBUG] getPlayer вернул:", targetList and #targetList or "nil")
     if not targetList or #targetList == 0 then
         notify("Aimbot", "Цель '" .. tostring(args[1]) .. "' не найдена.")
-        print("[DEBUG] Цель не найдена")
+        print("[Aimbot] getPlayer не вернул цель")
         return
     end
-
     local targetName = targetList[1]
-    print("[DEBUG] Выбрана цель: " .. targetName)
+    print("[Aimbot] Выбрана цель: " .. targetName)
 
     local targetPlayer = game.Players:FindFirstChild(targetName)
     if not targetPlayer or not targetPlayer.Character then
         notify("Aimbot", "Цель недоступна.")
-        print("[DEBUG] Цель недоступна (нет Character)")
+        print("[Aimbot] targetPlayer или Character отсутствует")
         return
     end
 
-    local targetHead = targetPlayer.Character:FindFirstChild("Head")
-    if not targetHead then
-        notify("Aimbot", "Голова цели не найдена.")
-        print("[DEBUG] Голову цели не нашли")
+    -- Нацеливаемся на HitboxHead
+    local hitbox = targetPlayer.Character:FindFirstChild("HitboxHead")
+    if not hitbox then
+        notify("Aimbot", "HitboxHead цели не найден.")
+        print("[Aimbot] HitboxHead отсутствует")
         return
     end
 
-    print("[DEBUG] Цель найдена, начинаем подсветку и наводку")
+    -- Используем камеру из game.Workspace.Camera (режим 1-го лица)
+    local cam = game.Workspace.Camera
+    if not cam then
+        notify("Aimbot", "Камера не найдена в Workspace.")
+        print("[Aimbot] Камера отсутствует")
+        return
+    end
 
-    -- Создаем BillboardGui для подсветки (виден через стены)
-    local billboard = Instance.new("BillboardGui")
-    billboard.Name = "AimbotBillboard"
-    billboard.Adornee = targetHead
-    billboard.Size = UDim2.new(0, 200, 0, 50)
-    billboard.AlwaysOnTop = true
-    billboard.BackgroundTransparency = 1
-    billboard.Parent = targetPlayer.Character
+    print("[Aimbot] Запуск цикла аимбота на " .. targetName)
 
-    local frame = Instance.new("Frame", billboard)
-    frame.Size = UDim2.new(1,0,1,0)
-    frame.BackgroundColor3 = Color3.new(1, 0, 0)  -- красный цвет
-    frame.BorderSizePixel = 0
-    frame.BackgroundTransparency = 0.5
-
-    -- Запускаем цикл для автоматической наводки камеры
-    local camera = workspace.CurrentCamera
     local connection
     connection = game:GetService("RunService").RenderStepped:Connect(function()
-        if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("Head") then
-            local targetPos = targetPlayer.Character.Head.Position
-            local camPos = camera.CFrame.Position
-            camera.CFrame = CFrame.new(camPos, targetPos)
-            print("[DEBUG] Камера наводится на " .. targetName)
+        -- Если цель все еще существует
+        if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HitboxHead") then
+            local targetPos = targetPlayer.Character.HitboxHead.Position
+            local camPos = cam.CFrame.Position
+            cam.CFrame = CFrame.new(camPos, targetPos)
+            -- Камера постоянно направляется на HitboxHead цели
         else
-            print("[DEBUG] Цель потеряна, завершаем аимбот")
+            print("[Aimbot] Цель потеряна, завершаем цикл")
             if connection then
                 connection:Disconnect()
-            end
-            if billboard then
-                billboard:Destroy()
-                print("[DEBUG] BillboardGui удалён")
             end
         end
     end)
 
     notify("Aimbot", "Аимбот активирован на " .. targetName)
-    print("[DEBUG] Аимбот активирован на " .. targetName)
+    print("[Aimbot] Аимбот активирован")
 end)
 
 
