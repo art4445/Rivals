@@ -12391,70 +12391,73 @@ end)
 
 
 addcmd('aimhitbox', {'ahb'}, function(args, speaker)
-    -- Перед аимботом вызываем esp и ждем 1 секунду
+    print("[Aimbot] Команда вызвана. speaker=", speaker.Name)
+
+    -- 1) Вызываем esp, ждём 1 секунду
     execCmd('esp')
     task.wait(1)
-    print("[Aimbot] ESP вызван, ожидание 1 секунда завершено")
+    print("[Aimbot] ESP вызван, ожидание завершено")
 
-    -- Проверяем аргумент: имя цели
     if not args[1] or args[1] == "" then
         notify("Aimbot", "Не указан игрок для аимбота.")
-        print("[Aimbot] args[1] отсутствует")
+        print("[Aimbot] Не указан игрок")
         return
     end
 
-    local targetList = getPlayer(args[1], speaker)
-    if not targetList or #targetList == 0 then
-        notify("Aimbot", "Цель '" .. tostring(args[1]) .. "' не найдена.")
-        print("[Aimbot] getPlayer не вернул цель")
+    local targets = getPlayer(args[1], speaker)
+    print("[Aimbot] getPlayer вернул:", targets and #targets or "nil")
+    if not targets or #targets == 0 then
+        notify("Aimbot", "Цель '"..tostring(args[1]).."' не найдена.")
+        print("[Aimbot] Цель не найдена")
         return
     end
-    local targetName = targetList[1]
-    print("[Aimbot] Выбрана цель: " .. targetName)
-
+    local targetName = targets[1]
     local targetPlayer = game.Players:FindFirstChild(targetName)
     if not targetPlayer or not targetPlayer.Character then
-        notify("Aimbot", "Цель недоступна.")
-        print("[Aimbot] targetPlayer или Character отсутствует")
+        notify("Aimbot","Цель недоступна (нет Character).")
+        print("[Aimbot] Цель недоступна")
         return
     end
 
-    -- Нацеливаемся на HitboxHead
     local hitbox = targetPlayer.Character:FindFirstChild("HitboxHead")
     if not hitbox then
-        notify("Aimbot", "HitboxHead цели не найден.")
-        print("[Aimbot] HitboxHead отсутствует")
+        notify("Aimbot","У цели нет HitboxHead")
+        print("[Aimbot] HitboxHead не найден")
         return
     end
 
-    -- Используем камеру из game.Workspace.Camera (режим 1-го лица)
-    local cam = game.Workspace.Camera
+    -- 2) Берём камеру и ставим её в Scriptable
+    local cam = workspace.Camera
     if not cam then
-        notify("Aimbot", "Камера не найдена в Workspace.")
-        print("[Aimbot] Камера отсутствует")
+        notify("Aimbot","Не нашли workspace.Camera")
+        print("[Aimbot] Camera отсутствует")
         return
     end
+    local oldType = cam.CameraType
+    cam.CameraType = Enum.CameraType.Scriptable
+    print("[Aimbot] Установили CameraType = Scriptable")
 
-    print("[Aimbot] Запуск цикла аимбота на " .. targetName)
-
+    -- 3) Начинаем наводить камеру
     local connection
     connection = game:GetService("RunService").RenderStepped:Connect(function()
-        -- Если цель все еще существует
-        if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HitboxHead") then
+        if targetPlayer
+           and targetPlayer.Character
+           and targetPlayer.Character:FindFirstChild("HitboxHead")
+        then
             local targetPos = targetPlayer.Character.HitboxHead.Position
             local camPos = cam.CFrame.Position
             cam.CFrame = CFrame.new(camPos, targetPos)
-            -- Камера постоянно направляется на HitboxHead цели
+            -- print("[Aimbot] Наводим камеру на "..targetName)
         else
-            print("[Aimbot] Цель потеряна, завершаем цикл")
-            if connection then
-                connection:Disconnect()
-            end
+            print("[Aimbot] Цель потеряна, отключаем аимбот")
+            if connection then connection:Disconnect() end
+            -- Возвращаем камеру
+            cam.CameraType = oldType
         end
     end)
 
-    notify("Aimbot", "Аимбот активирован на " .. targetName)
-    print("[Aimbot] Аимбот активирован")
+    notify("Aimbot","Аимбот включен на "..targetName)
+    print("[Aimbot] Аимбот включен, цель=", targetName)
 end)
 
 
