@@ -12389,109 +12389,90 @@ end)
 
 
 
-local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
 local camera = workspace.CurrentCamera
-local localPlayer = Players.LocalPlayer
 
-local aimbotConnection = nil  -- Для хранения подключения RenderStepped
+local triggerbotConnection = nil
 
--- Параметры Raycast (чтобы исключить ваш Character)
-local rayParams = RaycastParams.new()
-rayParams.FilterType = Enum.RaycastFilterType.Blacklist
-if localPlayer.Character then
-    rayParams.FilterDescendantsInstances = {localPlayer.Character}
-end
-
-addcmd('aimhitbox', {'ahb'}, function(args, speaker)
-    print("[Aimbot] Команда вызвана. Speaker:", speaker.Name)
-    
+addcmd('triggerbot', {'trig'}, function(args, speaker)
+    -- Проверяем аргумент: имя цели
     if not args[1] or args[1] == "" then
-        notify("Aimbot", "Не указан игрок для аимбота.")
-        print("[Aimbot] Ошибка: нет аргумента args[1]")
+        notify("Triggerbot", "Не указан игрок для триггербота.")
         return
     end
 
     local targetList = getPlayer(args[1], speaker)
-    print("[Aimbot] getPlayer вернул:", targetList and #targetList or "nil")
     if not targetList or #targetList == 0 then
-        notify("Aimbot", "Цель '" .. tostring(args[1]) .. "' не найдена.")
-        print("[Aimbot] Ошибка: цель не найдена")
+        notify("Triggerbot", "Цель '" .. tostring(args[1]) .. "' не найдена.")
         return
     end
 
     local targetName = targetList[1]
-    print("[Aimbot] Выбрана цель:", targetName)
-
-    local targetPlayer = game.Players:FindFirstChild(targetName)
+    local targetPlayer = Players:FindFirstChild(targetName)
     if not targetPlayer or not targetPlayer.Character then
-        notify("Aimbot", "Цель недоступна.")
-        print("[Aimbot] Ошибка: нет Character у цели")
+        notify("Triggerbot", "Цель недоступна.")
         return
     end
 
-    local hitbox = targetPlayer.Character:FindFirstChild("HitboxHead")
-    if not hitbox then
-        notify("Aimbot", "У цели нет HitboxHead.")
-        print("[Aimbot] Ошибка: HitboxHead не найден")
+    local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not targetRoot then
+        notify("Triggerbot", "У цели не найден HumanoidRootPart.")
         return
     end
 
-    -- Сохраняем предыдущий тип камеры и устанавливаем Scriptable
-    local oldCameraType = camera.CameraType
-    camera.CameraType = Enum.CameraType.Scriptable
-    print("[Aimbot] Камера переведена в Scriptable")
+    notify("Triggerbot", "Триггербот активирован на " .. targetName)
+    print("[Triggerbot] Запущен на " .. targetName)
 
-    aimbotConnection = RunService.RenderStepped:Connect(function()
-        -- Выполняем raycast из центра экрана
+    -- Обновляем параметры для raycast, чтобы исключить вашего персонажа
+    local rayParams = RaycastParams.new()
+    rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+    if speaker.Character then
+        rayParams.FilterDescendantsInstances = {speaker.Character}
+    end
+
+    triggerbotConnection = RunService.RenderStepped:Connect(function()
         local viewportSize = camera.ViewportSize
-        local center = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
+        local center = Vector2.new(viewportSize.X/2, viewportSize.Y/2)
         local ray = camera:ScreenPointToRay(center.X, center.Y)
         local result = workspace:Raycast(ray.Origin, ray.Direction * 1000, rayParams)
+
         if result and result.Instance then
-            if result.Instance.Name == "HumanoidRootPart" then
-                execCmd('autoclick 1 0.01')
-                print("[Aimbot] autoclick вызван, объект:", result.Instance:GetFullName())
+            -- Если первый пересечённый объект – HumanoidRootPart, принадлежащий цели
+            if result.Instance.Name == "HumanoidRootPart" and result.Instance:IsDescendantOf(targetPlayer.Character) then
+                execCmd('autoclick 1 0.00000000000000001')
+                print("[Triggerbot] Центр экрана попал в " .. result.Instance:GetFullName())
             else
-                print("[Aimbot] Луч пересёк:", result.Instance:GetFullName())
+                execCmd('unautokeypress')
+                print("[Triggerbot] Луч пересёк " .. result.Instance:GetFullName() .. " (не цель)")
             end
         else
-            print("[Aimbot] Луч не пересёк ничего")
+            execCmd('unautokeypress')
+            print("[Triggerbot] Луч не пересёк ни одного объекта")
         end
 
-        -- Наводим камеру на HitboxHead цели
-        if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HitboxHead") then
-            local targetPos = targetPlayer.Character.HitboxHead.Position
-            local camPos = camera.CFrame.Position
-            camera.CFrame = CFrame.new(camPos, targetPos)
-            print("[Aimbot] Камера наводится на:", targetName)
-        else
-            print("[Aimbot] Цель потеряна, останавливаем аимбот")
-            if aimbotConnection then
-                aimbotConnection:Disconnect()
-                aimbotConnection = nil
+        -- Если цель исчезла
+        if not targetPlayer.Character or not targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            print("[Triggerbot] Цель пропала, отключаем триггербот")
+            if triggerbotConnection then
+                triggerbotConnection:Disconnect()
+                triggerbotConnection = nil
             end
-            camera.CameraType = oldCameraType
-            notify("Aimbot", "Аимбот остановлен (цель потеряна).")
+            execCmd('unautokeypress')
+            notify("Triggerbot", "Триггербот отключен (цель пропала)")
         end
     end)
-
-    notify("Aimbot", "Аимбот активирован на " .. targetName)
-    print("[Aimbot] Аимбот активирован на:", targetName)
 end)
 
--- Команда для остановки аимбота
-addcmd('stopaimbot', {'sa'}, function(args, speaker)
-    if aimbotConnection then
-        aimbotConnection:Disconnect()
-        aimbotConnection = nil
-        camera.CameraType = Enum.CameraType.Custom
-        notify("Aimbot", "Аимбот остановлен.")
-        print("[Aimbot] Аимбот остановлен.")
+addcmd('stoptriggerbot', {'stoptb'}, function(args, speaker)
+    if triggerbotConnection then
+        triggerbotConnection:Disconnect()
+        triggerbotConnection = nil
+        execCmd('unautokeypress')
+        notify("Triggerbot", "Триггербот остановлен.")
+        print("[Triggerbot] Остановлен")
     else
-        notify("Aimbot", "Аимбот не запущен.")
-        print("[Aimbot] Аимбот не был запущен.")
+        notify("Triggerbot", "Триггербот не активен.")
     end
 end)
 
